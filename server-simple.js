@@ -9,6 +9,8 @@ const PORT = process.env.PORT || 3000;
 // In-memory storage for testing
 const callData = new Map();
 
+// Simple English-only IVR system
+
 // Middleware
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
@@ -58,10 +60,11 @@ app.post('/api/twilio/voice', (req, res) => {
       method: 'POST'
     });
 
+    // Play language selection prompt in English
     gather.say({
       voice: 'alice',
       language: 'en-US'
-    }, 'First, please select your preferred language. Press 1 for English. Press 2 for Hindi. Press 3 for Tamil. Press 4 for Kannada.');
+    }, 'Select language: Press 1 for English, 2 for Hindi, 3 for Tamil, 4 for Kannada.');
 
     // If no input is received, repeat the question
     twiml.say({
@@ -78,6 +81,7 @@ app.post('/api/twilio/voice', (req, res) => {
     res.status(500).send('Error processing call');
   }
 });
+
 
 // Language selection handler
 app.post('/api/twilio/language-selection', (req, res) => {
@@ -97,15 +101,15 @@ app.post('/api/twilio/language-selection', (req, res) => {
         break;
       case '2':
         language = 'Hindi';
-        languageCode = 'hi-IN';
+        languageCode = 'en-IN';
         break;
       case '3':
         language = 'Tamil';
-        languageCode = 'ta-IN';
+        languageCode = 'en-US';
         break;
       case '4':
         language = 'Kannada';
-        languageCode = 'kn-IN';
+        languageCode = 'en-US';
         break;
       default:
         twiml.say({
@@ -130,16 +134,17 @@ app.post('/api/twilio/language-selection', (req, res) => {
     // Ask for waste management number
     const gather = twiml.gather({
       input: 'dtmf',
-      timeout: 15,
+      timeout: 12,
       numDigits: 10,
       action: '/api/twilio/house-number',
       method: 'POST'
     });
 
+    // Use text-to-speech for all languages
     gather.say({
       voice: 'alice',
       language: languageCode
-    }, `Thank you for selecting ${language}. Now, please enter your waste management number using the keypad. For example, if your waste management number is 12345, press 1, 2, 3, 4, 5.`);
+    }, 'Please enter your waste management number using the keypad.');
 
     // If no input is received, repeat the question
     twiml.say({
@@ -176,21 +181,27 @@ app.post('/api/twilio/house-number', (req, res) => {
     // Ask for rating
     const gather = twiml.gather({
       input: 'dtmf',
-      timeout: 10,
+      timeout: 8,
       numDigits: 1,
       action: '/api/twilio/rating',
       method: 'POST'
     });
 
+    // Get the language from call data
+    const currentCallInfo = callData.get(CallSid);
+    const selectedLanguage = currentCallInfo ? currentCallInfo.language : 'English';
+    const languageCode = selectedLanguage === 'Hindi' ? 'en-IN' : 'en-US';
+    
+    // Use text-to-speech for rating prompt
     gather.say({
       voice: 'alice',
-      language: 'en-US'
-    }, `Thank you. Your waste management number is ${Digits}. Now, please rate our waste management service. Press 1 for poor, 2 for fair, 3 for good, 4 for very good, or 5 for excellent.`);
+      language: languageCode
+    }, 'Please rate our waste management service. Press 1 for poor, 2 for fair, 3 for good, 4 for very good, or 5 for excellent.');
 
     // If no input is received, repeat the question
     twiml.say({
       voice: 'alice',
-      language: 'en-US'
+      language: languageCode
     }, 'We didn\'t receive any input. Please try again.');
     twiml.redirect('/api/twilio/house-number');
 
@@ -248,11 +259,16 @@ app.post('/api/twilio/rating', (req, res) => {
 
     console.log(`✅ Rating stored: ${ratingText} (${Digits}) for call ${CallSid}`);
 
-    // Thank you message and end call
+    // Get the language for thank you message
+    const finalCallInfo = callData.get(CallSid);
+    const finalLanguage = finalCallInfo ? finalCallInfo.language : 'English';
+    const finalLanguageCode = finalLanguage === 'Hindi' ? 'en-IN' : 'en-US';
+    
+    // Use text-to-speech for thank you message
     twiml.say({
       voice: 'alice',
-      language: 'en-US'
-    }, `Thank you for your rating of ${ratingText}. Your feedback is important to us. Thank you for using Waste Management Services. Have a great day!`);
+      language: finalLanguageCode
+    }, 'Thank you for your feedback. Your rating has been recorded. Have a great day!');
 
     twiml.hangup();
 
