@@ -1,1 +1,0 @@
-Rate our service: Press 1 for poor, 2 for fair, 3 for good, 4 for very good, 5 for excellent.
